@@ -1,0 +1,6 @@
+torch==2.7.0
+torchvision==0.22.0
+torchaudio==2.7.0
+spikingjelly==0.0.0.0.14
+tensorboard==2.19.0
+scipy==1.15.3
