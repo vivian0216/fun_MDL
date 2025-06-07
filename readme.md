@@ -1,11 +1,6 @@
 # DSAIT4205 Fundemental Research in Machine and Deep Learning: Reproduction project 
 
 Reproduction for the paper [Deep Residual Learning in Spiking Neural Networks](https://arxiv.org/abs/2102.04159)
-
-## Table of Contents
-- [Install dependencies](#install-dependencies)
-- [Dataset for DVS Gesture](#dataset-for-dvs-gesture)
-  - [Train on DVS Gesture](#train-on-dvs-gesture)
   
 ## Install dependencies
 
