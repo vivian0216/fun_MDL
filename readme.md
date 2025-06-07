@@ -1,8 +1,16 @@
 # DSAIT4205 Fundemental Research in Machine and Deep Learning: Reproduction project 
+***Authors: Lennard van Hal, Shreyas Kalvanker, Vivian Ning.***
 
-Reproduction for the paper [Deep Residual Learning in Spiking Neural Networks](https://arxiv.org/abs/2102.04159)
-  
-## Install dependencies
+This is a reproduction for the paper [Deep Residual Learning in Spiking Neural Networks](https://arxiv.org/abs/2102.04159). 
+
+## 📚 Table of Contents
+
+1. [🔧 Install Dependencies](#install-dependencies)  
+2. [📊 Dataset for DVS Gesture](#dataset-for-dvs-gesture)  
+   2.1 [🎯 Train on DVS Gesture](#train-on-dvs-gesture)  
+
+
+## 🔧 Install dependencies
 
 I recommend using a virtual environment for this:
 
@@ -17,7 +25,7 @@ Install the requirements
 pip install -r requirements.txt
 ```
 
-## Dataset for DVS Gesture
+## 📊 Dataset for DVS Gesture
 
 Download all the files from here: [https://ibm.ent.box.com/s/3hiq58ww1pbbjrinh367ykfdf60xsfm8/folder/50167556794](https://ibm.ent.box.com/s/3hiq58ww1pbbjrinh367ykfdf60xsfm8/folder/50167556794)
 
@@ -25,7 +33,7 @@ Unzip it and move the contents to a `datasets/` folder, e.g.
 
 `datasets/DVS128Gesture/download`
 
-### Train on DVS Gesture
+### 🎯 Train on DVS Gesture
 
 ```bash
 cd dvsgesture
