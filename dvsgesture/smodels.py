@@ -8,7 +8,7 @@ class MultiStepParametricLIFNode(neuron.ParametricLIFNode):
         super().__init__(step_mode="m", **kwargs)
 
 
-def conv3x3(in_channels, out_channels):
+def conv3x3(in_channels, out_channels, init_tau=2.0):
     return nn.Sequential(
         layer.SeqToANNContainer(
             nn.Conv2d(
@@ -21,27 +21,27 @@ def conv3x3(in_channels, out_channels):
             ),
             nn.BatchNorm2d(out_channels),
         ),
-        MultiStepParametricLIFNode(init_tau=2.0, detach_reset=True),
+        MultiStepParametricLIFNode(init_tau=init_tau, detach_reset=True),
     )
 
 
-def conv1x1(in_channels, out_channels):
+def conv1x1(in_channels, out_channels, init_tau=2.0):
     return nn.Sequential(
         layer.SeqToANNContainer(
             nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, bias=False),
             nn.BatchNorm2d(out_channels),
         ),
-        MultiStepParametricLIFNode(init_tau=2.0, detach_reset=True),
+        MultiStepParametricLIFNode(init_tau=init_tau, detach_reset=True),
     )
 
 
 class SEWBlock(nn.Module):
-    def __init__(self, in_channels, mid_channels, connect_f=None):
+    def __init__(self, in_channels, mid_channels, connect_f=None, init_tau=2.0):
         super(SEWBlock, self).__init__()
         self.connect_f = connect_f
         self.conv = nn.Sequential(
-            conv3x3(in_channels, mid_channels),
-            conv3x3(mid_channels, in_channels),
+            conv3x3(in_channels, mid_channels, init_tau),
+            conv3x3(mid_channels, in_channels, init_tau),
         )
 
     def forward(self, x: torch.Tensor):
@@ -59,11 +59,11 @@ class SEWBlock(nn.Module):
 
 
 class PlainBlock(nn.Module):
-    def __init__(self, in_channels, mid_channels):
+    def __init__(self, in_channels, mid_channels, init_tau=2.0):
         super(PlainBlock, self).__init__()
         self.conv = nn.Sequential(
-            conv3x3(in_channels, mid_channels),
-            conv3x3(mid_channels, in_channels),
+            conv3x3(in_channels, mid_channels, init_tau),
+            conv3x3(mid_channels, in_channels, init_tau),
         )
 
     def forward(self, x: torch.Tensor):
@@ -71,10 +71,10 @@ class PlainBlock(nn.Module):
 
 
 class BasicBlock(nn.Module):
-    def __init__(self, in_channels, mid_channels):
+    def __init__(self, in_channels, mid_channels, init_tau=2.0):
         super(BasicBlock, self).__init__()
         self.conv = nn.Sequential(
-            conv3x3(in_channels, mid_channels),
+            conv3x3(in_channels, mid_channels, init_tau),
             layer.SeqToANNContainer(
                 nn.Conv2d(
                     mid_channels,
@@ -87,14 +87,14 @@ class BasicBlock(nn.Module):
                 nn.BatchNorm2d(in_channels),
             ),
         )
-        self.sn = MultiStepParametricLIFNode(init_tau=2.0, detach_reset=True)
+        self.sn = MultiStepParametricLIFNode(init_tau=init_tau, detach_reset=True)
 
     def forward(self, x: torch.Tensor):
         return self.sn(x + self.conv(x))
 
 
 class ResNetN(nn.Module):
-    def __init__(self, layer_list, num_classes, connect_f=None):
+    def __init__(self, layer_list, num_classes, connect_f=None, init_tau=2.0):
         super(ResNetN, self).__init__()
         in_channels = 2
         conv = []
@@ -109,9 +109,9 @@ class ResNetN(nn.Module):
 
             if in_channels != channels:
                 if cfg_dict["up_kernel_size"] == 3:
-                    conv.append(conv3x3(in_channels, channels))
+                    conv.append(conv3x3(in_channels, channels, init_tau))
                 elif cfg_dict["up_kernel_size"] == 1:
-                    conv.append(conv1x1(in_channels, channels))
+                    conv.append(conv1x1(in_channels, channels, init_tau))
                 else:
                     raise NotImplementedError
 
@@ -121,13 +121,13 @@ class ResNetN(nn.Module):
                 num_blocks = cfg_dict["num_blocks"]
                 if cfg_dict["block_type"] == "sew":
                     for _ in range(num_blocks):
-                        conv.append(SEWBlock(in_channels, mid_channels, connect_f))
+                        conv.append(SEWBlock(in_channels, mid_channels, connect_f, init_tau))
                 elif cfg_dict["block_type"] == "plain":
                     for _ in range(num_blocks):
-                        conv.append(PlainBlock(in_channels, mid_channels))
+                        conv.append(PlainBlock(in_channels, mid_channels, init_tau))
                 elif cfg_dict["block_type"] == "basic":
                     for _ in range(num_blocks):
-                        conv.append(BasicBlock(in_channels, mid_channels))
+                        conv.append(BasicBlock(in_channels, mid_channels, init_tau))
                 else:
                     raise NotImplementedError
 
@@ -154,7 +154,7 @@ class ResNetN(nn.Module):
         return self.out(x.mean(0))
 
 
-def SEWResNet(connect_f):
+def SEWResNet(connect_f, init_tau=2.0):
     layer_list = [
         {
             "channels": 32,
@@ -214,7 +214,7 @@ def SEWResNet(connect_f):
         },
     ]
     num_classes = 11
-    return ResNetN(layer_list, num_classes, connect_f)
+    return ResNetN(layer_list, num_classes, connect_f, init_tau)
 
 
 def PlainNet(*args, **kwargs):

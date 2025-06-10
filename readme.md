@@ -40,5 +40,5 @@ python train.py --tb --amp --output-dir ./logs --model SpikingResNet --device cu
 Train the SEW ResNet:
 
 ```bash
-python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f ADD --device cuda:0 --lr-step-size 64 --epoch 192 --T_train 12 --T 16 --data-path ../datasets/DVS128Gesture --lr 0.001
+python train.py --tb --amp --init_tau 16.0 --output-dir ./logs --model SEWResNet --connect_f ADD --device mps --lr-step-size 64 --epoch 88 --T_train 12 --T 16 --data-path ../datasets/DVS128Gesture --lr 0.001
 ```

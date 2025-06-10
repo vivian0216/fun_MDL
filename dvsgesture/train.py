@@ -1,3 +1,4 @@
+import argparse
 import datetime
 import os
 import time
@@ -6,7 +7,7 @@ import torch.utils.data
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 import math
-from torch.cuda import amp
+from torch import amp # from torch.cuda import amp
 import smodels, utils
 from spikingjelly.clock_driven import functional
 from spikingjelly.datasets import dvs128_gesture
@@ -42,7 +43,7 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, pri
             image = image[:, sec_list]
 
         if scaler is not None:
-            with amp.autocast():
+            with amp.autocast(args.device): # with amp.autocast():
                 output = model(image)
                 loss = criterion(output, target)
         else:
@@ -183,7 +184,7 @@ def main(args):
         dataset_test, batch_size=args.batch_size,
         sampler=test_sampler, num_workers=args.workers, pin_memory=True)
 
-    model = smodels.__dict__[args.model](args.connect_f)
+    model = smodels.__dict__[args.model](args.connect_f, args.init_tau)
     print("Creating model")
 
     model.to(device)
@@ -212,6 +213,7 @@ def main(args):
         model_without_ddp = model.module
 
     if args.resume:
+        torch.serialization.add_safe_globals([argparse.Namespace])
         checkpoint = torch.load(args.resume, map_location='cpu')
         model_without_ddp.load_state_dict(checkpoint['model'])
         optimizer.load_state_dict(checkpoint['optimizer'])
@@ -305,6 +307,7 @@ def parse_args():
     parser.add_argument('-b', '--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=90, type=int, metavar='N',
                         help='number of total epochs to run')
+    parser.add_argument('--init_tau', default=2.0, type=float, help='initial membrane time constant')
     parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                         help='number of data loading workers (default: 4)')
     parser.add_argument('--lr', type=float, help='initial learning rate', default=0.1)
