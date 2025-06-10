@@ -43,9 +43,13 @@ class SEWBlock(nn.Module):
             conv3x3(in_channels, mid_channels),
             conv3x3(mid_channels, in_channels),
         )
+        self.A_spikes = None
+        self.O_spikes = None
 
     def forward(self, x: torch.Tensor):
         out = self.conv(x)
+        self.A_spikes = out
+
         if self.connect_f == "ADD":
             out += x
         elif self.connect_f == "AND":
@@ -54,6 +58,8 @@ class SEWBlock(nn.Module):
             out = x * (1.0 - out)
         else:
             raise NotImplementedError(self.connect_f)
+
+        self.O_spikes = out
 
         return out
 

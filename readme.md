@@ -50,3 +50,49 @@ Train the SEW ResNet:
 ```bash
 python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f ADD --device cuda:0 --lr-step-size 64 --epoch 192 --T_train 12 --T 16 --data-path ../datasets/DVS128Gesture --lr 0.001
 ```
+
+# Train SEW ResNet on DVS Gesture with different connection function
+
+While the SEW ResNet paper discusses the average firing rates of residual
+outputs $A^l$ and block outputs $O^l$ across layers, it does not examine how
+these firing rates evolve over the course of training. Understanding the
+temporal dynamics of firing activity can reveal how information flow, identity
+mapping, and layer-wise transformations develop throughout learning. In
+particular, analyzing how firing rates change across early vs. late blocks and
+across different connection functions $g$ (ADD, AND, IAND) may uncover
+differences in network plasticity, convergence behavior, and reliance on
+shortcut vs. residual pathways. This experiment aims to fill that gap by
+measuring the per-epoch firing rates of $A^l$ and $O^l$ in each block, offering
+insights into how SEW blocks adapt over time and how the choice of $g$
+influences the learning dynamics of spiking residual networks.
+
+```bash
+cd dvsgesture
+```
+
+#### Train the SEW ResNet using ADD:
+
+$g(A^l[t], S^l[t]) = A^l[t] + S^l[t]$
+
+```bash
+python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f ADD --device cuda:0 --lr-step-size 64 --epoch 91 --T_train 12 --T 16 --data-path ../datasets/DVS128Gesture --lr 0.001
+```
+
+#### Train the SEW ResNet using AND:
+
+$g(A^l[t], S^l[t]) = A^l[t] \wedge S^l[t] = A^l[t] \cdot S^l[t]$
+
+```bash
+python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f AND --device cuda:0 --lr-step-size 64 --epoch 91 --T_train 12 --T 16 --data-path ../datasets/DVS128Gesture --lr 0.03
+```
+
+#### Train the SEW ResNet using IAND:
+
+$g(A^l[t], S^l[t]) = (\neg A^l[t]) \wedge S^l[t] = (1-A^l[t]) \cdot S^l[t]$
+
+```bash
+python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f IAND --device cuda:0 --lr-step-size 64 --epoch 91 --T_train 12 --T 16 --data-path ../datasets/DVS128Gesture --lr 0.063
+```
+
+The logs should have the plots for firing rates of each block for each epochs in each folder.
+There should also be a csv file that we will later use for producing one plot of all the runs.

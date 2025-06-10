@@ -1,11 +1,15 @@
-from collections import defaultdict, deque
+import csv
 import datetime
-import time
-import torch
-import torch.distributed as dist
-
 import errno
 import os
+import time
+from collections import defaultdict, deque
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.distributed as dist
 
 
 class SmoothedValue(object):
@@ -32,7 +36,7 @@ class SmoothedValue(object):
         """
         if not is_dist_avail_and_initialized():
             return
-        t = torch.tensor([self.count, self.total], dtype=torch.float64, device='cuda')
+        t = torch.tensor([self.count, self.total], dtype=torch.float64, device="cuda")
         dist.barrier()
         dist.all_reduce(t)
         t = t.tolist()
@@ -67,7 +71,8 @@ class SmoothedValue(object):
             avg=self.avg,
             global_avg=self.global_avg,
             max=self.max,
-            value=self.value)
+            value=self.value,
+        )
 
 
 class MetricLogger(object):
@@ -87,15 +92,14 @@ class MetricLogger(object):
             return self.meters[attr]
         if attr in self.__dict__:
             return self.__dict__[attr]
-        raise AttributeError("'{}' object has no attribute '{}'".format(
-            type(self).__name__, attr))
+        raise AttributeError(
+            "'{}' object has no attribute '{}'".format(type(self).__name__, attr)
+        )
 
     def __str__(self):
         loss_str = []
         for name, meter in self.meters.items():
-            loss_str.append(
-                "{}: {}".format(name, str(meter))
-            )
+            loss_str.append("{}: {}".format(name, str(meter)))
         return self.delimiter.join(loss_str)
 
     def synchronize_between_processes(self):
@@ -108,31 +112,35 @@ class MetricLogger(object):
     def log_every(self, iterable, print_freq, header=None):
         i = 0
         if not header:
-            header = ''
+            header = ""
         start_time = time.time()
         end = time.time()
-        iter_time = SmoothedValue(fmt='{avg:.4f}')
-        data_time = SmoothedValue(fmt='{avg:.4f}')
-        space_fmt = ':' + str(len(str(len(iterable)))) + 'd'
+        iter_time = SmoothedValue(fmt="{avg:.4f}")
+        data_time = SmoothedValue(fmt="{avg:.4f}")
+        space_fmt = ":" + str(len(str(len(iterable)))) + "d"
         if torch.cuda.is_available():
-            log_msg = self.delimiter.join([
-                header,
-                '[{0' + space_fmt + '}/{1}]',
-                'eta: {eta}',
-                '{meters}',
-                'time: {time}',
-                'data: {data}',
-                'max mem: {memory:.0f}'
-            ])
+            log_msg = self.delimiter.join(
+                [
+                    header,
+                    "[{0" + space_fmt + "}/{1}]",
+                    "eta: {eta}",
+                    "{meters}",
+                    "time: {time}",
+                    "data: {data}",
+                    "max mem: {memory:.0f}",
+                ]
+            )
         else:
-            log_msg = self.delimiter.join([
-                header,
-                '[{0' + space_fmt + '}/{1}]',
-                'eta: {eta}',
-                '{meters}',
-                'time: {time}',
-                'data: {data}'
-            ])
+            log_msg = self.delimiter.join(
+                [
+                    header,
+                    "[{0" + space_fmt + "}/{1}]",
+                    "eta: {eta}",
+                    "{meters}",
+                    "time: {time}",
+                    "data: {data}",
+                ]
+            )
         MB = 1024.0 * 1024.0
         for obj in iterable:
             data_time.update(time.time() - end)
@@ -142,21 +150,107 @@ class MetricLogger(object):
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
                 if torch.cuda.is_available():
-                    print(log_msg.format(
-                        i, len(iterable), eta=eta_string,
-                        meters=str(self),
-                        time=str(iter_time), data=str(data_time),
-                        memory=torch.cuda.max_memory_allocated() / MB))
+                    print(
+                        log_msg.format(
+                            i,
+                            len(iterable),
+                            eta=eta_string,
+                            meters=str(self),
+                            time=str(iter_time),
+                            data=str(data_time),
+                            memory=torch.cuda.max_memory_allocated() / MB,
+                        )
+                    )
                 else:
-                    print(log_msg.format(
-                        i, len(iterable), eta=eta_string,
-                        meters=str(self),
-                        time=str(iter_time), data=str(data_time)))
+                    print(
+                        log_msg.format(
+                            i,
+                            len(iterable),
+                            eta=eta_string,
+                            meters=str(self),
+                            time=str(iter_time),
+                            data=str(data_time),
+                        )
+                    )
             i += 1
             end = time.time()
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        print('{} Total time: {}'.format(header, total_time_str))
+        print("{} Total time: {}".format(header, total_time_str))
+
+
+def compute_firing_rate(spike_tensor, timesteps=16):
+    if spike_tensor is None:
+        return 0.0
+    num_neurons = spike_tensor[0].numel()
+    total_spikes = spike_tensor.float().sum().item()
+    return total_spikes / (num_neurons * timesteps)
+
+
+def prepare_block_mapping(firing_rates):
+    original_names = sorted(firing_rates.keys(), key=lambda x: int(x.split("_")[1]))
+    return {old_name: f"block_{i+1}" for i, old_name in enumerate(original_names)}
+
+
+def log_firing_rates_to_csv(csv_path, epoch, firing_rates, connect_f, rate_type):
+    """Log firing rates to CSV file"""
+    headers = ["epoch", "connect_f", "rate_type"] + [
+        f"block_{i}" for i in range(1, len(firing_rates) + 1)
+    ]
+
+    row = {
+        "epoch": epoch,
+        "connect_f": connect_f,
+        "rate_type": rate_type,
+        **{
+            f"block_{i}": np.mean(rates)
+            for i, rates in enumerate(firing_rates.values(), 1)
+        },
+    }
+
+    # Write headers if file doesn't exist
+    if not csv_path.exists() or epoch == 0:
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=headers)
+            writer.writeheader()
+
+    # Append data
+    with open(csv_path, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
+        writer.writerow(row)
+
+
+def plot_and_save_firing_rates(output_dir, epoch, firing_rates, rate_type):
+    """Generate and save firing rate plots"""
+    name_mapping = prepare_block_mapping(firing_rates)
+    block_names = []
+    mean_rates = []
+
+    for name, rates in firing_rates.items():
+        block_names.append(name_mapping[name])
+        mean_rates.append(np.mean(rates))
+
+    # Sort blocks
+    block_order = np.argsort([int(name.split("_")[1]) for name in block_names])
+    sorted_blocks = [block_names[i] for i in block_order]
+    sorted_rates = [mean_rates[i] for i in block_order]
+
+    # Create plot
+    fig, ax = plt.subplots()
+    ax.plot(range(len(sorted_blocks)), sorted_rates, marker="o")
+    ax.set_xticks(range(len(sorted_blocks)))
+    ax.set_ylabel("Firing Rate")
+    ax.set_xlabel("Block index l")
+    ax.set_title(f"{rate_type} Firing Rates at Epoch {epoch}")
+    ax.grid(True)
+
+    # Save plot
+    fig_path = Path(output_dir) / f"{rate_type}_plots"
+    fig_path.mkdir(exist_ok=True)
+    fig.savefig(fig_path / f"{rate_type}_rates_epoch_{epoch}.png")
+    plt.close(fig)
+
+    return fig
 
 
 def accuracy(output, target, topk=(1,)):
@@ -189,10 +283,11 @@ def setup_for_distributed(is_master):
     This function disables printing when not in master process
     """
     import builtins as __builtin__
+
     builtin_print = __builtin__.print
 
     def print(*args, **kwargs):
-        force = kwargs.pop('force', False)
+        force = kwargs.pop("force", False)
         if is_master or force:
             builtin_print(*args, **kwargs)
 
@@ -229,28 +324,31 @@ def save_on_master(*args, **kwargs):
 
 
 def init_distributed_mode(args):
-    if 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
+    if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
         args.rank = int(os.environ["RANK"])
-        args.world_size = int(os.environ['WORLD_SIZE'])
-        args.gpu = int(os.environ['LOCAL_RANK'])
-    elif 'SLURM_PROCID' in os.environ:
-        args.rank = int(os.environ['SLURM_PROCID'])
+        args.world_size = int(os.environ["WORLD_SIZE"])
+        args.gpu = int(os.environ["LOCAL_RANK"])
+    elif "SLURM_PROCID" in os.environ:
+        args.rank = int(os.environ["SLURM_PROCID"])
         args.gpu = args.rank % torch.cuda.device_count()
     elif hasattr(args, "rank"):
         pass
     else:
-        print('Not using distributed mode')
+        print("Not using distributed mode")
         args.distributed = False
         return
 
     args.distributed = True
 
     torch.cuda.set_device(args.gpu)
-    args.dist_backend = 'nccl'
-    print('| distributed init (rank {}): {}'.format(
-        args.rank, args.dist_url), flush=True)
-    torch.distributed.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
-                                         world_size=args.world_size, rank=args.rank)
+    args.dist_backend = "nccl"
+    print(
+        "| distributed init (rank {}): {}".format(args.rank, args.dist_url), flush=True
+    )
+    torch.distributed.init_process_group(
+        backend=args.dist_backend,
+        init_method=args.dist_url,
+        world_size=args.world_size,
+        rank=args.rank,
+    )
     setup_for_distributed(args.rank == 0)
-
-

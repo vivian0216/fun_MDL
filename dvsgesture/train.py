@@ -2,7 +2,10 @@ import datetime
 import math
 import os
 import time
+from collections import defaultdict
+from pathlib import Path
 
+import matplotlib.pyplot as plt
 import smodels
 import torch
 import torch.utils.data
@@ -48,6 +51,9 @@ def train_one_epoch(
 
     header = "Epoch: [{}]".format(epoch)
 
+    all_A_l_firing_rates = defaultdict(list)
+    all_O_l_firing_rates = defaultdict(list)
+
     for image, target in metric_logger.log_every(data_loader, print_freq, header):
         start_time = time.time()
         image, target = image.to(device), target.to(device)
@@ -77,6 +83,15 @@ def train_one_epoch(
             loss.backward()
             optimizer.step()
 
+        # ---- FIRING RATE COLLECTION ----
+        for i, module in enumerate(model.modules()):
+            if hasattr(module, "A_spikes") and module.A_spikes is not None:
+                rate = utils.compute_firing_rate(module.A_spikes, T_train)
+                all_A_l_firing_rates[f"block_{i}"].append(rate)
+            if hasattr(module, "O_spikes") and module.O_spikes is not None:
+                rate = utils.compute_firing_rate(module.O_spikes, T_train)
+                all_O_l_firing_rates[f"block_{i}"].append(rate)
+
         functional.reset_net(model)
 
         acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
@@ -99,12 +114,17 @@ def train_one_epoch(
         metric_logger.loss.global_avg,
         metric_logger.acc1.global_avg,
         metric_logger.acc5.global_avg,
+        all_A_l_firing_rates,
+        all_O_l_firing_rates,
     )
 
 
 def evaluate(model, criterion, data_loader, device, print_freq=100, header="Test:"):
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
+
+    # all_spike_rates = defaultdict(list)
+
     with torch.no_grad():
         for image, target in metric_logger.log_every(data_loader, print_freq, header):
             image = image.to(device, non_blocking=True)
@@ -112,6 +132,7 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, header="Test
             image = image.float()
             output = model(image)
             loss = criterion(output, target)
+
             functional.reset_net(model)
 
             acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
@@ -128,7 +149,11 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, header="Test
         metric_logger.acc5.global_avg,
     )
     print(f" * Acc@1 = {acc1}, Acc@5 = {acc5}, loss = {loss}")
-    return loss, acc1, acc5
+    return (
+        loss,
+        acc1,
+        acc5,
+    )
 
 
 def load_data(dataset_dir, distributed, T):
@@ -301,25 +326,79 @@ def main(args):
         save_max = False
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        train_loss, train_acc1, train_acc5 = train_one_epoch(
-            model,
-            criterion,
-            optimizer,
-            data_loader,
-            device,
-            epoch,
-            args.print_freq,
-            scaler,
-            args.T_train,
+        train_loss, train_acc1, train_acc5, A_l_firing_rates, O_l_firing_rates = (
+            train_one_epoch(
+                model,
+                criterion,
+                optimizer,
+                data_loader,
+                device,
+                epoch,
+                args.print_freq,
+                scaler,
+                args.T_train,
+            )
         )
         if utils.is_main_process():
             train_tb_writer.add_scalar("train_loss", train_loss, epoch)
             train_tb_writer.add_scalar("train_acc1", train_acc1, epoch)
             train_tb_writer.add_scalar("train_acc5", train_acc5, epoch)
+
+            csv_dir = os.path.join(output_dir, "firing_rates")
+            os.makedirs(csv_dir, exist_ok=True)
+
+            # Process A_l rates
+            name_mapping = utils.prepare_block_mapping(A_l_firing_rates)
+            for name, rates in A_l_firing_rates.items():
+                train_tb_writer.add_scalar(
+                    f"training_firing/A_l_{name_mapping[name]}", np.mean(rates), epoch
+                )
+
+            # CSV logging
+            utils.log_firing_rates_to_csv(
+                Path(csv_dir) / "firing_rates_A_l.csv",
+                epoch,
+                A_l_firing_rates,
+                args.connect_f,
+                "A_l",
+            )
+
+            # Plotting
+            fig = utils.plot_and_save_firing_rates(
+                output_dir, epoch, A_l_firing_rates, "A_l"
+            )
+            train_tb_writer.add_figure("A_l_firing_rates", fig, epoch)
+
+            # Process O_l rates
+            name_mapping = utils.prepare_block_mapping(O_l_firing_rates)
+            for name, rates in O_l_firing_rates.items():
+                train_tb_writer.add_scalar(
+                    f"training_firing/O_l_{name_mapping[name]}", np.mean(rates), epoch
+                )
+
+            # CSV logging
+            utils.log_firing_rates_to_csv(
+                Path(csv_dir) / "firing_rates_O_l.csv",
+                epoch,
+                O_l_firing_rates,
+                args.connect_f,
+                "O_l",
+            )
+
+            # Plotting
+            fig = utils.plot_and_save_firing_rates(
+                output_dir, epoch, O_l_firing_rates, "O_l"
+            )
+            train_tb_writer.add_figure("O_l_firing_rates", fig, epoch)
+
         lr_scheduler.step()
 
         test_loss, test_acc1, test_acc5 = evaluate(
-            model, criterion, data_loader_test, device=device, header="Test:"
+            model,
+            criterion,
+            data_loader_test,
+            device=device,
+            header="Test:",
         )
         if te_tb_writer is not None:
             if utils.is_main_process():
