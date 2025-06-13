@@ -99,10 +99,10 @@ There should also be a csv file that we will later use for producing one plot of
 
 # Hypothesis on Firing Rate Dynamics in SEW-ResNet
 
-We hypothesize that the firing rates of residual outputs \( A^l \) and block
-outputs \( O^l \) in SEW-ResNet evolve differently over the course of training,
-depending on the shortcut connection function \( g \in \{\text{ADD, AND,
-IAND}\} \). This expectation is based on the identity conditions defined by
+We hypothesize that the firing rates of residual outputs $A^l$ and block
+outputs $O^l$ in SEW-ResNet evolve differently over the course of training,
+depending on the shortcut connection function $g \in \{\text{ADD, AND,
+IAND}\}$. This expectation is based on the identity conditions defined by
 each connection function and the role of firing rates in determining whether
 the SEW block contributes computation or acts as a skip connection.
 
@@ -110,32 +110,47 @@ the SEW block contributes computation or acts as a skip connection.
 
 ## SEW-AND
 
-- The paper (Appendix A.3) states that for `g = AND`, the SEW block becomes identity when \( A^l \to 1 \).
-- Since \( O^l = A^l \cdot S^l \), the output will only match the shortcut when residual activity is consistently high.
+- The paper (Appendix A.3) states that for `g = AND`, the SEW block becomes identity when $A^l \to 1$.
+- Since $O^l = A^l \cdot S^l$, the output will only match the shortcut when residual activity is consistently high.
 - To maintain gradient flow and avoid “silent” blocks (as discussed in Section
   4.1), the network must ensure that residuals remain active enough to allow
   shortcut information through.
 
-**Hypothesis:** In SEW-AND, we expect the residual firing rates \( A^l \) to **increase over training**, especially in deeper layers, as the network seeks to preserve the shortcut path. The output firing rates \( O^l \) are expected to **grow more slowly**, since they depend on both residual and shortcut spikes aligning in time and space.
+**Hypothesis:** In SEW-AND, we expect the residual firing rates $A^l$ to
+**increase over training**, especially in deeper layers, as the network seeks
+to preserve the shortcut path. The output firing rates $O^l$ are expected
+to **grow more slowly**, since they depend on both residual and shortcut spikes
+aligning in time and space.
 
 ---
 
 ## SEW-IAND
 
-- For `g = IAND`, the paper defines the block as becoming identity **when \( A^l \to 0 \)**, since \( O^l = (1 - A^l) \cdot S^l \), and suppresses shortcut information when residual spikes are high.
-- IAND is described as being more effective than AND in avoiding the silence problem, suggesting that it enables more flexible modulation of information flow (Section 4.1 and Appendix A.3).
+- For `g = IAND`, the paper defines the block as becoming identity **when
+  $A^l \to 0$**, since $O^l = (1 - A^l) \cdot S^l$, and suppresses
+  shortcut information when residual spikes are high.
+- IAND is described as being more effective than AND in avoiding the silence
+  problem, suggesting that it enables more flexible modulation of information
+  flow (Section 4.1 and Appendix A.3).
 
-**Hypothesis:** In SEW-IAND, we expect residual activity \( A^l \) to **decrease during training**, particularly in blocks where shortcut features are informative. This allows shortcut spikes to pass unimpeded. The output firing rates \( O^l \) are expected to remain **stable or increase**, reflecting effective use of shortcut-based identity mappings.
+**Hypothesis:** In SEW-IAND, we expect residual activity $A^l$ to
+**decrease during training**, particularly in blocks where shortcut features
+are informative. This allows shortcut spikes to pass unimpeded. The output
+firing rates $O^l$ are expected to remain **stable or increase**,
+reflecting effective use of shortcut-based identity mappings.
 
 ---
 
 ## SEW-ADD
 
-- In SEW-ADD, \( O^l = A^l + S^l \), and the block acts like identity when \( A^l \to 0 \), allowing the shortcut to dominate.
+- In SEW-ADD, $O^l = A^l + S^l$, and the block acts like identity when $A^l \to 0$, allowing the shortcut to dominate.
 - The paper warns (Appendix A.3) that ADD may lead to spike accumulation and over-activation if not regularized.
 - Given this, it is expected that the network learns to **suppress residual spikes** where they are unnecessary, particularly in deeper layers.
 
-**Hypothesis:** In SEW-ADD, we expect \( A^l \) to **decrease over training**, as the network prunes redundant residual activity. The output firing rate \( O^l \) may remain **elevated** unless shortcut activity is also suppressed, due to the unregulated addition of two spiking streams.
+**Hypothesis:** In SEW-ADD, we expect $A^l$ to **decrease over training**,
+as the network prunes redundant residual activity. The output firing rate $O^l$
+may remain **elevated** unless shortcut activity is also suppressed, due
+to the unregulated addition of two spiking streams.
 
 ---
 
@@ -145,6 +160,9 @@ the SEW block contributes computation or acts as a skip connection.
 - There is no architectural mechanism encouraging blocks to become identity mappings.
 - Therefore, the network is expected to maintain relatively stable spiking patterns across blocks.
 
-**Hypothesis:** In Spiking ResNet, both \( A^l \) and \( O^l \) firing rates are expected to remain **relatively stable** during training, with modest adjustments driven by gradient optimization rather than structural identity constraints.
+**Hypothesis:** In Spiking ResNet, both $A^l$ and $O^l$ firing rates
+are expected to remain **relatively stable** during training, with modest
+adjustments driven by gradient optimization rather than structural identity
+constraints.
 
 ---
