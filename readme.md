@@ -9,6 +9,7 @@ This is a reproduction for the paper [Deep Residual Learning in Spiking Neural N
 1. [🔧 Install Dependencies](#install-dependencies)
 2. [📊 Dataset for DVS Gesture](#dataset-for-dvs-gesture)  
    2.1 [🎯 Train on DVS Gesture](#train-on-dvs-gesture)
+
    2.2 [🎯 Train SEW ResNet on DVS Gesture with different connection function](#train-sew-resnet-on-dvs-gesture-with-different-connection-function)
 
 ## 🔧 Install dependencies
