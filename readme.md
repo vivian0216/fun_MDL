@@ -1,14 +1,14 @@
-# DSAIT4205 Fundemental Research in Machine and Deep Learning: Reproduction project 
-***Authors: Lennard van Hal, Shreyas Kalvanker, Vivian Ning.***
+# DSAIT4205 Fundemental Research in Machine and Deep Learning: Reproduction project
 
-This is a reproduction for the paper [Deep Residual Learning in Spiking Neural Networks](https://arxiv.org/abs/2102.04159). 
+**_Authors: Lennard van Hal, Shreyas Kalvanker, Vivian Ning._**
+
+This is a reproduction for the paper [Deep Residual Learning in Spiking Neural Networks](https://arxiv.org/abs/2102.04159).
 
 ## 📚 Table of Contents
 
-1. [🔧 Install Dependencies](#install-dependencies)  
+1. [🔧 Install Dependencies](#install-dependencies)
 2. [📊 Dataset for DVS Gesture](#dataset-for-dvs-gesture)  
-   2.1 [🎯 Train on DVS Gesture](#train-on-dvs-gesture)  
-
+   2.1 [🎯 Train on DVS Gesture](#train-on-dvs-gesture)
 
 ## 🔧 Install dependencies
 
@@ -166,3 +166,8 @@ adjustments driven by gradient optimization rather than structural identity
 constraints.
 
 ---
+
+# Use of Generative AI
+
+Generative AI tools like ChatGPT 4o-mini have been used to assist in creation
+of the plots in [playground.ipynb](dvsgesture/playground.ipynb).
