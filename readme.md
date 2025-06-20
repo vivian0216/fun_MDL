@@ -9,6 +9,7 @@ This is a reproduction for the paper [Deep Residual Learning in Spiking Neural N
 1. [🔧 Install Dependencies](#install-dependencies)
 2. [📊 Dataset for DVS Gesture](#dataset-for-dvs-gesture)  
    2.1 [🎯 Train on DVS Gesture](#train-on-dvs-gesture)
+   2.2 [🎯 Train SEW ResNet on DVS Gesture with different connection function](#train-sew-resnet-on-dvs-gesture-with-different-connection-function)
 
 ## 🔧 Install dependencies
 
@@ -51,7 +52,7 @@ Train the SEW ResNet:
 python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f ADD --device cuda:0 --lr-step-size 64 --epoch 192 --T_train 12 --T 16 --data-path ../datasets/DVS128Gesture --lr 0.001
 ```
 
-# Train SEW ResNet on DVS Gesture with different connection function
+### 🎯 Train SEW ResNet on DVS Gesture with different connection function
 
 While the SEW ResNet paper discusses the average firing rates of residual
 outputs $A^l$ and block outputs $O^l$ across layers, it does not examine how
@@ -70,7 +71,7 @@ influences the learning dynamics of spiking residual networks.
 cd dvsgesture
 ```
 
-#### Train the SEW ResNet using ADD:
+##### Train the SEW ResNet using ADD:
 
 $g(A^l[t], S^l[t]) = A^l[t] + S^l[t]$
 
@@ -78,7 +79,7 @@ $g(A^l[t], S^l[t]) = A^l[t] + S^l[t]$
 python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f ADD --device cuda:0 --lr-step-size 64 --epoch 91 --T_train 12 --T 16 --data-path ../datasets/DVS128Gesture --lr 0.001
 ```
 
-#### Train the SEW ResNet using AND:
+##### Train the SEW ResNet using AND:
 
 $g(A^l[t], S^l[t]) = A^l[t] \wedge S^l[t] = A^l[t] \cdot S^l[t]$
 
@@ -86,7 +87,7 @@ $g(A^l[t], S^l[t]) = A^l[t] \wedge S^l[t] = A^l[t] \cdot S^l[t]$
 python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f AND --device cuda:0 --lr-step-size 64 --epoch 91 --T_train 12 --T 16 --data-path ../datasets/DVS128Gesture --lr 0.03
 ```
 
-#### Train the SEW ResNet using IAND:
+##### Train the SEW ResNet using IAND:
 
 $g(A^l[t], S^l[t]) = (\neg A^l[t]) \wedge S^l[t] = (1-A^l[t]) \cdot S^l[t]$
 
@@ -97,7 +98,7 @@ python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f IAN
 The logs should have the plots for firing rates of each block for each epochs in each folder.
 There should also be a csv file that we will later use for producing one plot of all the runs.
 
-# Hypothesis on Firing Rate Dynamics in SEW-ResNet
+#### Hypothesis on Firing Rate Dynamics in SEW-ResNet
 
 We hypothesize that the firing rates of residual outputs $A^l$ and block
 outputs $O^l$ in SEW-ResNet evolve differently over the course of training,
@@ -108,7 +109,7 @@ the SEW block contributes computation or acts as a skip connection.
 
 ---
 
-## SEW-AND
+##### SEW-AND
 
 - The paper (Appendix A.3) states that for `g = AND`, the SEW block becomes identity when $A^l \to 1$.
 - Since $O^l = A^l \cdot S^l$, the output will only match the shortcut when residual activity is consistently high.
@@ -124,7 +125,7 @@ aligning in time and space.
 
 ---
 
-## SEW-IAND
+##### SEW-IAND
 
 - For `g = IAND`, the paper defines the block as becoming identity **when
   $A^l \to 0$**, since $O^l = (1 - A^l) \cdot S^l$, and suppresses
@@ -141,7 +142,7 @@ reflecting effective use of shortcut-based identity mappings.
 
 ---
 
-## SEW-ADD
+##### SEW-ADD
 
 - In SEW-ADD, $O^l = A^l + S^l$, and the block acts like identity when $A^l \to 0$, allowing the shortcut to dominate.
 - The paper warns (Appendix A.3) that ADD may lead to spike accumulation and over-activation if not regularized.
@@ -154,7 +155,7 @@ to the unregulated addition of two spiking streams.
 
 ---
 
-## Spiking ResNet (no SEW)
+##### Spiking ResNet (no SEW)
 
 - Spiking ResNet contains no connection functions or dynamic gating between residual and shortcut paths.
 - There is no architectural mechanism encouraging blocks to become identity mappings.
@@ -167,7 +168,7 @@ constraints.
 
 ---
 
-# Use of Generative AI
+## Use of Generative AI
 
 Generative AI tools like ChatGPT 4o-mini have been used to assist in creation
 of the plots in [playground.ipynb](dvsgesture/playground.ipynb).
