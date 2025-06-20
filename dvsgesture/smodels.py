@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from spikingjelly.activation_based import layer, neuron
+from spikingjelly.activation_based.base import copy
 
 
 class MultiStepParametricLIFNode(neuron.ParametricLIFNode):
@@ -43,9 +44,13 @@ class SEWBlock(nn.Module):
             conv3x3(in_channels, mid_channels),
             conv3x3(mid_channels, in_channels),
         )
+        self.A_spikes = None
+        self.O_spikes = None
 
     def forward(self, x: torch.Tensor):
         out = self.conv(x)
+        self.A_spikes = out
+
         if self.connect_f == "ADD":
             out += x
         elif self.connect_f == "AND":
@@ -54,6 +59,8 @@ class SEWBlock(nn.Module):
             out = x * (1.0 - out)
         else:
             raise NotImplementedError(self.connect_f)
+
+        self.O_spikes = out
 
         return out
 
@@ -88,9 +95,22 @@ class BasicBlock(nn.Module):
             ),
         )
         self.sn = MultiStepParametricLIFNode(init_tau=2.0, detach_reset=True)
+        self.A_spikes = None
+        self.O_spikes = None
 
     def forward(self, x: torch.Tensor):
-        return self.sn(x + self.conv(x))
+        out = self.conv(x)
+
+        sn = copy.deepcopy(self.sn)
+        with torch.no_grad():
+            self.A_spikes = sn(out)
+            del sn
+
+        out = self.sn(x + out)
+        self.O_spikes = out
+
+        return out
+        # return self.sn(x + self.conv(x))
 
 
 class ResNetN(nn.Module):
